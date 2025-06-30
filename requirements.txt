@@ -1,0 +1,12 @@
+Django==5.2.3
+django-cors-headers==4.3.1
+django-environ==0.12.0
+django-filter==25.1
+djangorestframework==3.16.0
+drf-yasg==1.21.10
+Pillow==11.2.1
+psycopg2-binary==2.9.10
+autopep8
+environ
+requests
+gunicorn
