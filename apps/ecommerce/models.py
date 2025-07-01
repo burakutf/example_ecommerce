@@ -3,8 +3,8 @@ from django.db import models
 
 class BaseModel(models.Model):
     """
-    Başlangıç model, tüm modellerin ortak özelliklerini tanımlamak için kullanılır.
-    Bu model, oluşturulma ve güncellenme zamanlarını otomatik olarak yönetir.
+    BaseModel is used to define common attributes for all models.
+    It automatically manages the creation and modification timestamps.
     """
     created_time = models.DateTimeField(auto_now_add=True)
     modified_time = models.DateTimeField(auto_now=True, db_index=True)
@@ -14,9 +14,9 @@ class BaseModel(models.Model):
 
     def save(self, *args, **kwargs):
         """
-        Kayıt işlemi sırasında, güncellenme zamanını otomatik olarak günceller.
-        Eğer `update_fields` parametresi belirtilmişse, bu alana 'modified_time' eklenir.
-        Bu, modelin güncellenme zamanının her kayıtta doğru şekilde tutulmasını sağlar.
+        This save method ensures that the modified_time is updated automatically
+        whenever the model instance is saved. If `update_fields` is provided,
+        it appends 'modified_time' to the list, ensuring that this field is always
         """
         update_fields = kwargs.get("update_fields", None)
         if update_fields is not None:
@@ -29,18 +29,18 @@ class BaseModel(models.Model):
 
 class Attributes(BaseModel):
     """
-    Özellikler, ürünlerin özelliklerini tanımlamak için kullanılır.
-    Örneğin, malzeme gibi özellikler ürünlerin çeşitlerini belirlemek için kullanılır.
-    Attributeler içerisinde dropdown, checkbox, selectable gibi seçenekler olabilir. fakat burada yapıyı
-    basit tutmak adına sadece isim ve değer alanları ile tanımlıyoruz.
-    Varyantlar, ürünlerin farklı varyasyonlarını tanımlamak için kullanılır.
-    Örneğin, bir tişörtün farklı renk ve bedenleri gibi.
-    Attributes ve Varyantlar arasındaki fark, Attributes'ın genel özellikleri tanımlarken,
-    Varyantların belirli bir ürün varyasyonunu tanımlamasıdır.
-    // Dipnot: sitemap.xml dosyasında bu modelin kullanımı, ürünlerin özelliklerini ve varyantlarını
-    // daha iyi yönetmek ve SEO açısından optimize etmek için önemlidir.
+    Attributes are used to define the characteristics of products.
+    For example, material attributes can be used to define product variations.
+    Attributes can include options like dropdowns, checkboxes, and selectables,
+    but for simplicity, we define them with just a name and value field.
+    Variants are used to define different variations of products,
+    such as different colors and sizes of a t-shirt.
+    The difference between Attributes and Variants is that Attributes define general characteristics,
+    while Variants define a specific product variation.
+    Attributes and Variants are essential for managing product characteristics and variations,
+    especially in e-commerce systems where products can have multiple attributes and variations.
     """
-    name = models.CharField(max_length=128)
+    name = models.CharField(max_length=128, unique=True, db_index=True)
     is_visible = models.BooleanField(default=True)
     is_variant = models.BooleanField(default=False)
 
@@ -50,11 +50,13 @@ class Attributes(BaseModel):
 
 class ProductAttribute(BaseModel):
     """
-    Ürün özellikleri, ürünlerin belirli özelliklerini tanımlamak için kullanılır.
-    Bu model, ürünlerin özelliklerini ve varyantlarını ilişkilendirmek için kullanılır.
-    Örneğin, bir tişörtün rengi veya bedeni gibi özellikler burada tanımlanır.
+    ProductAttribute is used to link products with their attributes.
+    It allows for the association of a product with various attributes,
+    such as color, size, or material.
+    Each product can have multiple attributes, and each attribute can be linked to multiple products.
+    This model is essential for managing product variations and attributes in an e-commerce system.
     """
-    product = models.ForeignKey('Product', on_delete=models.CASCADE, related_name='product_attributes')
+    product = models.ForeignKey('Product', on_delete=models.CASCADE, related_name='product_attributes', null=True)
     attribute = models.ForeignKey(Attributes, on_delete=models.CASCADE, related_name='product_attributes')
     value = models.CharField(max_length=128)
 
@@ -64,9 +66,9 @@ class ProductAttribute(BaseModel):
 
 class Category(BaseModel):
     """
-    Kategori, ürünlerin gruplandırılması için kullanılır.
-    Her kategori, bir isim ve isteğe bağlı olarak bir açıklama içerebilir.
-    Kategoriler, ürünlerin daha düzenli ve erişilebilir olmasını sağlar.
+    Category is used to group products.
+    Each category can have a name and an optional description.
+    Categories help in organizing products for better accessibility.
     """
     name = models.CharField(max_length=128)
     description = models.TextField(blank=True, null=True)
@@ -77,17 +79,18 @@ class Category(BaseModel):
 
 class Product(BaseModel):
     """
-    Base code aynı veya benzer ürünlerin gruplandırılması için kullanılır.
-    SKU (Stock Keeping Unit) benzersiz bir ürün tanımlayıcısıdır.
-    SKU, ürünün stok takibi ve yönetimi için kullanılır.
-    SKU'da oluşan varyantlar aynı ürün gurubuna ait alt farklı ürün olarak tanımlanır,
-    örneğin, bir tişörtün farklı renk ve bedenleri gibi.
-    (Varyantlar, özelliklerin is_variant alanı True olarak işaretlenmiş olanlarıdır.)
-    Buradaki `base_code` alanı, ürünlerin benzer özelliklere sahip gruplarını tanımlamak için kullanılır.
-    Bu mimarinin genel amacı, Varyantlı ürünlerin yönetimini ve stok takibini kolaylaştırmaktır.
+    The base code is used to group similar or identical products together.
+    SKU (Stock Keeping Unit) is a unique product identifier.
+    SKU is used for stock tracking and management.
+    Variants in SKU are defined as different products within the same product group,
+    for example, different colors and sizes of a t-shirt.
+    Variants are those attributes marked with is_variant as True.
+    The `base_code` field here is used to define groups of products with similar attributes.
+    The overall purpose of this architecture is to facilitate the management and stock tracking of products with variants.
     """
-    base_code = models.CharField(max_length=64)
+    base_code = models.CharField(max_length=64, db_index=True)
     sku = models.CharField(max_length=64, unique=True)
+    image = models.ImageField(upload_to='media/products/', null=True)
     name = models.CharField(max_length=128)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     quantity = models.PositiveIntegerField(default=0)
@@ -96,5 +99,5 @@ class Product(BaseModel):
     attributes = models.ManyToManyField(Attributes, through='ProductAttribute', related_name='products')
 
     def __str__(self):
-        return self.name
+        return self.name + f" ({self.sku})"
     
